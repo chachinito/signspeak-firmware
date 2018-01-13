@@ -1,32 +1,76 @@
 constexpr int MUX_S0 = 2;
 constexpr int MUX_S1 = 3;
-constexpr int MUX_S2 = 4;
-constexpr int MUX_S3 = 5;
+constexpr int MUX_E00 = 4;
+constexpr int MUX_E01 = 5;
+constexpr int MUX_E10 = 6;
+constexpr int MUX_E11 = 7;
 constexpr int MUX_Z = A0;
+
+constexpr int SENSOR_FLEX_COUNT = 10;
+
+struct SensorPacket {
+    int flex[SENSOR_FLEX_COUNT];
+    int gyroscope[3];
+    int accelerometer[3];
+};
+
+void muxSetup() {
+    pinMode(MUX_S0, OUTPUT);
+    pinMode(MUX_S1, OUTPUT);
+    pinMode(MUX_E00, OUTPUT);
+    pinMode(MUX_E01, OUTPUT);
+    pinMode(MUX_E10, OUTPUT);
+    pinMode(MUX_E11, OUTPUT);
+    pinMode(MUX_Z, INPUT);
+}
+
+void muxSelect(int z) {
+    bool bit2 = bitRead(z, 2);
+    bool bit3 = bitRead(z, 3);
+
+    digitalWrite(MUX_E00, (!bit2 && !bit3) ? HIGH : LOW);
+    digitalWrite(MUX_E01, (bit2 && !bit3) ? HIGH : LOW);
+    digitalWrite(MUX_E10, (!bit2 && bit3) ? HIGH : LOW);
+    digitalWrite(MUX_E11, (bit2 && bit3) ? HIGH : LOW);
+
+    digitalWrite(MUX_S0, bitRead(z, 0) ? HIGH : LOW);
+    digitalWrite(MUX_S1, bitRead(z, 1) ? HIGH : LOW);
+}
+
+int muxRead(bool digital = true) {
+    if(digital) return digitalRead(MUX_Z); else analogRead(MUX_Z);
+}
+
+void muxWrite(int value, bool digital = true) {
+    if(digital) digitalWrite(MUX_Z, value); else analogWrite(MUX_Z, value);
+}
 
 void setup() {
     Serial.begin(9600);
 
     pinMode(MUX_S0, OUTPUT);
     pinMode(MUX_S1, OUTPUT);
-    pinMode(MUX_S2, OUTPUT);
-    pinMode(MUX_S3, OUTPUT);
+    pinMode(MUX_E00, OUTPUT);
+    pinMode(MUX_E01, OUTPUT);
+    pinMode(MUX_E10, OUTPUT);
+    pinMode(MUX_E11, OUTPUT);
     pinMode(MUX_Z, INPUT);
 }
 
 void loop() {
-    Serial.write(256);
+    SensorPacket packet;
 
-    uint8_t values[10];
-    for(int i = 0; i < 10; ++i) {
-        digitalWrite(MUX_S0, bitRead(i, 0));
-        digitalWrite(MUX_S1, bitRead(i, 1));
-        digitalWrite(MUX_S2, bitRead(i, 2));
-        digitalWrite(MUX_S3, bitRead(i, 3));
-        values[i] = static_cast<uint8_t>(constrain(map(analogRead(MUX_Z), 600, 900, 0, 255), 0, 255));
-
-        Serial.write(values[i]);
+    // Get flex sensor readings
+    for(int i = 0; i < SENSOR_FLEX_COUNT; ++i) {
+        muxSelect(i);
+        packet.flex[i] = muxRead(false);
     }
 
-    delay(250);
+    // TODO: Get accelerometer readings
+
+    // TODO: Get gyroscope readings
+
+    Serial.write((uint8_t*) &packet, sizeof(packet));
+
+    delay(125);
 }
