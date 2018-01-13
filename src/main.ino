@@ -1,3 +1,6 @@
+#include "I2Cdev.h"
+#include "MPU6050.h"
+#include <SPI.h>
 constexpr int MUX_S0 = 2;
 constexpr int MUX_S1 = 3;
 constexpr int MUX_E00 = 4;
@@ -8,6 +11,13 @@ constexpr int MUX_Z = A0;
 
 constexpr int SENSOR_FLEX_COUNT = 10;
 
+
+MPU6050 accelgyro;
+ 
+int16_t ax, ay, az;
+int16_t gx, gy, gz;
+
+ 
 struct SensorPacket {
     int flex[SENSOR_FLEX_COUNT];
     int gyroscope[3];
@@ -55,6 +65,21 @@ void setup() {
     pinMode(MUX_E10, OUTPUT);
     pinMode(MUX_E11, OUTPUT);
     pinMode(MUX_Z, INPUT);
+
+
+      // join I2C bus
+    Wire.begin();
+ 
+ 
+    // initialize device
+    Serial.println("Initializing I2C devices...");
+    accelgyro.initialize();
+ 
+    // verify connection
+    Serial.println("Testing device connections...");
+    Serial.println(accelgyro.testConnection() ? "MPU6050 connection successful" : "MPU6050 connection failed");
+
+ 
 }
 
 void loop() {
@@ -66,9 +91,8 @@ void loop() {
         packet.flex[i] = muxRead(false);
     }
 
-    // TODO: Get accelerometer readings
-
-    // TODO: Get gyroscope readings
+      // read raw accel/gyro measurements from device
+    accelgyro.getMotion6(&packet.accelerometer[0], &packet.accelerometer[1], &packet.accelerometer[2], &packet.gyroscope[0], &packet.gyroscope[1], &packet.gyroscope[2]);
 
     Serial.write((uint8_t*) &packet, sizeof(packet));
 
